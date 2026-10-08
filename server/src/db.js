@@ -14,6 +14,11 @@ function getDatabase() {
   return db;
 }
 
+function tableSql(name) {
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
+  return row ? row.sql : "";
+}
+
 function initDatabase() {
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
@@ -21,13 +26,28 @@ function initDatabase() {
 
   db = new DatabaseSync(dbPath);
 
+  // Si la base viene de la Fase 1 (roles en inglés), se recrean las tablas.
+  const usersSql = tableSql("users");
+  const ticketsSql = tableSql("tickets");
+  const esquemaAntiguo =
+    (usersSql && (usersSql.includes("'user'") || usersSql.includes("'agent'"))) ||
+    (ticketsSql && (ticketsSql.includes("'open'") || ticketsSql.includes("'closed'")));
+
+  if (esquemaAntiguo) {
+    db.exec(`
+      DROP TABLE IF EXISTS tickets;
+      DROP TABLE IF EXISTS users;
+    `);
+    console.log("Se actualizó el esquema de la base de datos (Fase 2). Los datos antiguos se eliminaron.");
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
       password TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('user', 'agent', 'admin')),
+      role TEXT NOT NULL DEFAULT 'usuario' CHECK(role IN ('usuario', 'tecnico')),
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -35,7 +55,7 @@ function initDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
       description TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'in_progress', 'closed')),
+      status TEXT NOT NULL DEFAULT 'abierto' CHECK(status IN ('abierto', 'en_proceso', 'resuelto')),
       priority TEXT NOT NULL DEFAULT 'medium' CHECK(priority IN ('low', 'medium', 'high')),
       user_id INTEGER NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
