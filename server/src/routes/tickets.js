@@ -1,6 +1,7 @@
 const express = require("express");
 const { getDatabase } = require("../db");
 const { authRequired } = require("../middleware/auth");
+const { clasificarTicket, asegurarColumnas } = require("../ia");
 
 const router = express.Router();
 const ESTADOS = ["abierto", "en_proceso", "resuelto"];
@@ -21,7 +22,12 @@ function ticketVisiblePara(user, ticket) {
 
 router.use(authRequired);
 
-router.post("/", (req, res) => {
+router.use((req, res, next) => {
+  asegurarColumnas(getDatabase());
+  next();
+});
+
+router.post("/", async (req, res) => {
   const { title, description } = req.body || {};
 
   if (!title || typeof title !== "string" || !title.trim()) {
@@ -31,13 +37,26 @@ router.post("/", (req, res) => {
     return res.status(400).json({ error: "La descripción es obligatoria." });
   }
 
-  const db = getDatabase();
-  const result = db
-    .prepare("INSERT INTO tickets (title, description, user_id) VALUES (?, ?, ?)")
-    .run(title.trim(), description.trim(), req.user.id);
+  try {
+    const db = getDatabase();
+    const result = db
+      .prepare("INSERT INTO tickets (title, description, user_id) VALUES (?, ?, ?)")
+      .run(title.trim(), description.trim(), req.user.id);
+    const id = Number(result.lastInsertRowid);
 
-  const ticket = db.prepare("SELECT * FROM tickets WHERE id = ?").get(Number(result.lastInsertRowid));
-  res.status(201).json({ ticket });
+    const ia = await clasificarTicket(title.trim(), description.trim());
+    db.prepare("UPDATE tickets SET category = ?, ai_suggestion = ? WHERE id = ?").run(
+      ia.categoria,
+      ia.sugerencia,
+      id
+    );
+
+    const ticket = db.prepare("SELECT * FROM tickets WHERE id = ?").get(id);
+    res.status(201).json({ ticket });
+  } catch (err) {
+    console.error("Error al crear el ticket:", err);
+    res.status(500).json({ error: "No se pudo crear el ticket." });
+  }
 });
 
 router.get("/", (req, res) => {

@@ -17,3 +17,4 @@ button.enlace { background: none; color: #2563eb; padding: 0; margin-top: 12px; 
 .etiqueta.resuelto { background: #dcfce7; }
 .fila { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .fila select { width: auto; }
+.sugerencia { background: #eef2ff; border-left: 4px solid #6366f1; padding: 10px; border-radius: 8px; margin: 10px 0; font-size: 14px; }

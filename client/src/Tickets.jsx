@@ -101,6 +101,12 @@ export default function Tickets() {
             <span className={`etiqueta ${t.status}`}>{textoEstado(t.status)}</span>
           </div>
           <p>{t.description}</p>
+          {t.category && <span className="etiqueta">Categoría: {t.category}</span>}
+          {t.ai_suggestion && (
+            <div className="sugerencia">
+              <strong>Sugerencia de IA:</strong> {t.ai_suggestion}
+            </div>
+          )}
           <div className="fila">
             <small>Prioridad: {t.priority}</small>
             {esTecnico && (
