@@ -89,6 +89,10 @@ router.get("/:id", (req, res) => {
 });
 
 router.patch("/:id/estado", (req, res) => {
+  if (req.user.role !== "tecnico") {
+    return res.status(403).json({ error: "Solo un técnico puede cambiar el estado de los tickets." });
+  }
+
   const id = Number(req.params.id);
   if (!Number.isInteger(id) || id < 1) {
     return res.status(400).json({ error: "Identificador de ticket no válido." });
@@ -106,9 +110,6 @@ router.patch("/:id/estado", (req, res) => {
 
   if (!ticket) {
     return res.status(404).json({ error: "Ticket no encontrado." });
-  }
-  if (!ticketVisiblePara(req.user, ticket)) {
-    return res.status(403).json({ error: "No puedes cambiar tickets de otras personas." });
   }
 
   db.prepare("UPDATE tickets SET status = ?, updated_at = datetime('now') WHERE id = ?").run(estado, id);
