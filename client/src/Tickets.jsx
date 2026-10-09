@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, cerrarSesion, obtenerUsuario } from "./api";
+import Estadisticas from "./Estadisticas";
 
 const ESTADOS = [
   { valor: "abierto", texto: "Abierto" },
   { valor: "en_proceso", texto: "En proceso" },
   { valor: "resuelto", texto: "Resuelto" },
 ];
+
+const CATEGORIAS = ["red", "hardware", "software", "cuentas", "otros"];
 
 function textoEstado(valor) {
   return ESTADOS.find((e) => e.valor === valor)?.texto || valor;
@@ -21,6 +24,10 @@ export default function Tickets() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
+
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("todos");
+  const [filtroCategoria, setFiltroCategoria] = useState("todas");
 
   async function cargar() {
     try {
@@ -63,6 +70,14 @@ export default function Tickets() {
     navigate("/login");
   }
 
+  const texto = busqueda.trim().toLowerCase();
+  const visibles = tickets.filter((t) => {
+    if (filtroEstado !== "todos" && t.status !== filtroEstado) return false;
+    if (filtroCategoria !== "todas" && t.category !== filtroCategoria) return false;
+    if (texto && !`${t.title} ${t.description}`.toLowerCase().includes(texto)) return false;
+    return true;
+  });
+
   return (
     <div className="contenedor">
       <div className="barra">
@@ -90,11 +105,48 @@ export default function Tickets() {
         </div>
       )}
 
+      {esTecnico && <Estadisticas tickets={tickets} />}
+
       <h2>{esTecnico ? "Todos los tickets" : "Mis tickets"}</h2>
 
-      {tickets.length === 0 && <div className="tarjeta">Todavía no hay tickets.</div>}
+      <div className="tarjeta">
+        <label style={{ marginTop: 0 }}>Buscar</label>
+        <input
+          placeholder="Escribe una palabra del título o la descripción"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+        />
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 140 }}>
+            <label>Estado</label>
+            <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
+              <option value="todos">Todos</option>
+              {ESTADOS.map((e) => (
+                <option key={e.valor} value={e.valor}>{e.texto}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ flex: 1, minWidth: 140 }}>
+            <label>Categoría</label>
+            <select value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)}>
+              <option value="todas">Todas</option>
+              {CATEGORIAS.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <small style={{ display: "block", marginTop: 10 }}>
+          Mostrando {visibles.length} de {tickets.length} tickets
+        </small>
+      </div>
 
-      {tickets.map((t) => (
+      {tickets.length === 0 && <div className="tarjeta">Todavía no hay tickets.</div>}
+      {tickets.length > 0 && visibles.length === 0 && (
+        <div className="tarjeta">Ningún ticket coincide con los filtros.</div>
+      )}
+
+      {visibles.map((t) => (
         <div className="tarjeta" key={t.id}>
           <div className="fila">
             <strong>{t.title}</strong>
